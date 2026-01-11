@@ -1,0 +1,44 @@
+[project]
+name = "jellyfin-user-reviews"
+version = "0.1.0"
+description = "A Jellyfin plugin that user reviews and ratings"
+authors = [
+    {name="Roach Ron", email="ronnytheroach@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "flask==3.1.2",
+    "requests==2.32.5",
+]
+
+[dependency-groups]
+dev = [
+    "black==25.12.0",
+    "isort==7.0.0",
+    "mypy==1.19.1",
+    "pylint==4.0.4",
+]
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.requires-plugins]
+poetry-plugin-sort = "^0.3.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 79
+
+[tool.mypy]
+check_untyped_defs = true
+
+[tool.pylint.messages_control]
+disable = [
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "missing-module-docstring",
+]
