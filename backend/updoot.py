@@ -5,15 +5,9 @@ import sqlite3
 import requests
 from flask import Flask, jsonify, request
 
+from backend.settings import settings
+
 app = Flask(__name__)
-# CONFIGURATION SECTION
-DATABASE = "./recommendations.db"  # leave this alone or select a dir you have read write access too
-JELLYFIN_URL = "https://YOURDOMAINNAMEHERE"  # Replace with your domain name
-JELLYFIN_API_KEY = "JELLYFINAPIKEYHERE"  # Replace with actual Jellyfin API key from the admin pannel api keys generate and copy that key here.
-ADMIN_USER_IDS = [
-    "88a888888aa88a88a8aa888aa8a8a8a8",
-    "USERID2",
-]  # Replace with actual admin user IDs that you want to have admin control of the comments and updoots to get these go to the admin pannel and edit that user the userid is going to be in the url for that page of the user.
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -25,10 +19,10 @@ logger = logging.getLogger(__name__)
 
 
 def init_db():
-    logger.debug("Initializing database at %s", DATABASE)
+    logger.debug("Initializing database at %s", settings.db_path)
     try:
-        os.makedirs(os.path.dirname(DATABASE), exist_ok=True)
-        with sqlite3.connect(DATABASE) as conn:
+        os.makedirs(os.path.dirname(settings.db_path), exist_ok=True)
+        with sqlite3.connect(settings.db_path) as conn:
             c = conn.cursor()
             c.execute(
                 """CREATE TABLE IF NOT EXISTS recommendations
@@ -46,7 +40,9 @@ def init_db():
                 "INSERT OR IGNORE INTO settings (globalLimit, userId, perUserLimit) VALUES (0, NULL, NULL)"
             )
             conn.commit()
-        logger.info("Database initialized successfully at %s", DATABASE)
+        logger.info(
+            "Database initialized successfully at %s", settings.db_path
+        )
     except sqlite3.OperationalError as e:
         logger.error("Failed to initialize database: %s", str(e))
         raise
@@ -55,7 +51,7 @@ def init_db():
 def get_db():
     logger.debug("Connecting to database")
     try:
-        conn = sqlite3.connect(DATABASE)
+        conn = sqlite3.connect(settings.db_path)
         conn.row_factory = sqlite3.Row
         logger.debug("Database connection established")
         return conn
@@ -67,7 +63,7 @@ def get_db():
 def get_jellyfin_username(userId):
     logger.debug("Fetching username for userId: %s", userId)
     try:
-        url = f"{JELLYFIN_URL}/Users/{userId}?api_key={JELLYFIN_API_KEY}"
+        url = f"{settings.jellyfin_url}/Users/{userId}?api_key={settings.jellyfin_api_key}"
         response = requests.get(url)
         if response.ok:
             user_data = response.json()
@@ -314,7 +310,10 @@ def edit_comment(commentId):
             if not result:
                 logger.warning("Comment not found: id=%s", commentId)
                 return jsonify({"error": "Comment not found"}), 404
-            if result["userId"] != userId and userId not in ADMIN_USER_IDS:
+            if (
+                result["userId"] != userId
+                and userId not in settings.admin_user_ids
+            ):
                 logger.warning(
                     "Unauthorized edit attempt: userId=%s, commentId=%s",
                     userId,
@@ -353,7 +352,10 @@ def delete_comment(commentId):
             if not result:
                 logger.warning("Comment not found: id=%s", commentId)
                 return jsonify({"error": "Comment not found"}), 404
-            if result["userId"] != userId and userId not in ADMIN_USER_IDS:
+            if (
+                result["userId"] != userId
+                and userId not in settings.admin_user_ids
+            ):
                 logger.warning(
                     "Unauthorized delete attempt: userId=%s, commentId=%s",
                     userId,
@@ -503,7 +505,7 @@ def save_settings():
 
 
 if __name__ == "__main__":
-    if not os.path.exists(DATABASE):
+    if not os.path.exists(settings.db_path):
         logger.info("Database not found, initializing")
         init_db()
     app.run(host="0.0.0.0", port=8099)

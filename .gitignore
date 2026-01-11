@@ -12,6 +12,10 @@ venv/
 ENV/
 env/
 
+# Env files
+.env
+.envrc
+
 # Packaging / build
 build/
 dist/
