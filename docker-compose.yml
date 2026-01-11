@@ -1,0 +1,37 @@
+services:
+  updoot:
+    build: .
+    image: jellyfin-updoot:local
+    ports:
+      - "8099:8099"
+    environment:
+      # --- Backend (Flask) ---
+      BACKEND_PORT: "8099"
+      DB_PATH: "/data/recommendations.db"
+      # Optional (enables Jellyfin username lookups)
+      UPDOOT_JELLYFIN_URL: "https://jellyfin.example.com"
+      UPDOOT_JELLYFIN_API_KEY: "..."
+      # Comma-separated list
+      UPDOOT_ADMIN_USER_IDS: "USERID1,USERID2"
+      # --- JS generation ---
+      # Where the injector loads updoot.js from (relative to Jellyfin origin by default)
+      # UPDOOT_SRC: "/updoot/assets/updoot.js"
+      # VERSION: "1"
+      # If you reverse-proxy the backend under a different path, change this:
+      # BACKEND_PATH: "/updoot"
+      # Optional absolute override (use only if not reverse-proxying under Jellyfin origin)
+      # UPDOOT_BACKEND_URL: "https://jellyfin.example.com/updoot"
+      # Optional fallback used if credentials aren't present in localStorage:
+      # UPDOOT_SERVER_URL_FALLBACK: "https://jellyfin.example.com"
+    volumes:
+      - updoot-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8099/health"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+
+volumes:
+  updoot-data:
+

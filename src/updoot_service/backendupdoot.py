@@ -1,18 +1,25 @@
-from flask import Flask, jsonify, request
+from flask import Flask, Response, jsonify, request
 import sqlite3
 import os
 import logging
 import requests
+import json
+from pathlib import Path
+
+from updoot_service.settings import Settings
+
+settings = Settings()
 
 app = Flask(__name__)
 # CONFIGURATION SECTION
-DATABASE = './recommendations.db'  # leave this alone or select a dir you have read write access too
-JELLYFIN_URL = 'https://YOURDOMAINNAMEHERE' # Replace with your domain name
-JELLYFIN_API_KEY = 'JELLYFINAPIKEYHERE'  # Replace with actual Jellyfin API key from the admin pannel api keys generate and copy that key here.
-ADMIN_USER_IDS = ['88a888888aa88a88a8aa888aa8a8a8a8', 'USERID2']  # Replace with actual admin user IDs that you want to have admin control of the comments and updoots to get these go to the admin pannel and edit that user the userid is going to be in the url for that page of the user.
+BASE_PATH = settings.backend_path
+DATABASE = settings.db_path
+JELLYFIN_URL = settings.jellyfin_url
+JELLYFIN_API_KEY = settings.jellyfin_api_key
+ADMIN_USER_IDS = settings.admin_user_ids
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=getattr(logging, settings.log_level, logging.DEBUG),
     format='%(asctime)s %(levelname)s: %(message)s',
     filename='./flask-app.log',
     filemode='a'  
@@ -66,7 +73,28 @@ def get_jellyfin_username(userId):
         logger.error('Error fetching username for userId=%s: %s', userId, str(e))
         return f'User_{userId[:8]}'
 
-@app.route('/updoot/recommend', methods=['POST'])
+def _read_text_file(path: str) -> str:
+    with open(path, 'r', encoding='utf-8') as f:
+        return f.read()
+
+# --- Assets (Dockerization support) ---
+@app.get(f'{BASE_PATH}/assets/config.json')
+def assets_config():
+    return jsonify({'updootSrc': settings.updoot_src, 'version': settings.version})
+
+@app.get(f'{BASE_PATH}/assets/updoot.js')
+def updoot_js() -> Response:
+    web_dir = Path(__file__).resolve().parents[3] / 'web' / 'templates'
+    updoot_tpl_path = str(web_dir / 'updoot.js')
+    tpl = _read_text_file(updoot_tpl_path)
+    rendered = tpl
+    rendered = rendered.replace('%%UPDOOT_BACKEND_URL%%', json.dumps(settings.backend_url))
+    rendered = rendered.replace('%%BACKEND_PATH%%', json.dumps(settings.backend_path))
+    rendered = rendered.replace('%%UPDOOT_ADMIN_USER_IDS%%', json.dumps(settings.admin_user_ids))
+    rendered = rendered.replace('%%UPDOOT_SERVER_URL_FALLBACK%%', json.dumps(settings.server_url_fallback))
+    return Response(rendered, mimetype='application/javascript')
+
+@app.route(f'{BASE_PATH}/recommend', methods=['POST'])
 def recommend():
     logger.debug('Received /recommend request')
     try:
@@ -117,7 +145,7 @@ def recommend():
         logger.error('Error in /recommend: %s', str(e))
         return jsonify({'error': str(e)}), 500
 
-@app.route('/updoot/recommendations', methods=['GET'])
+@app.route(f'{BASE_PATH}/recommendations', methods=['GET'])
 def get_recommendations():
     logger.debug('Received /recommendations request')
     try:
@@ -132,7 +160,7 @@ def get_recommendations():
         logger.error('Error in /recommendations: %s', str(e))
         return jsonify({'error': str(e)}), 500
 
-@app.route('/updoot/recommendations/<itemId>', methods=['GET'])
+@app.route(f'{BASE_PATH}/recommendations/<itemId>', methods=['GET'])
 def get_recommendations_for_item(itemId):
     logger.debug('Received /recommendations/%s request', itemId)
     try:
@@ -147,7 +175,7 @@ def get_recommendations_for_item(itemId):
         logger.error('Error in /recommendations/%s: %s', itemId, str(e))
         return jsonify({'error': str(e)}), 500
 
-@app.route('/updoot/comments', methods=['POST'])
+@app.route(f'{BASE_PATH}/comments', methods=['POST'])
 def add_comment():
     logger.debug('Received /comments request')
     try:
@@ -171,7 +199,7 @@ def add_comment():
         logger.error('Error in /comments: %s', str(e))
         return jsonify({'error': str(e)}), 500
 
-@app.route('/updoot/comments/<itemId>', methods=['GET'])
+@app.route(f'{BASE_PATH}/comments/<itemId>', methods=['GET'])
 def get_comments_for_item(itemId):
     logger.debug('Received /comments/%s request', itemId)
     try:
@@ -186,7 +214,7 @@ def get_comments_for_item(itemId):
         logger.error('Error in /comments/%s: %s', itemId, str(e))
         return jsonify({'error': str(e)}), 500
 
-@app.route('/updoot/comments/<int:commentId>', methods=['PUT'])
+@app.route(f'{BASE_PATH}/comments/<int:commentId>', methods=['PUT'])
 def edit_comment(commentId):
     logger.debug('Received /comments/%s PUT request', commentId)
     try:
@@ -216,7 +244,7 @@ def edit_comment(commentId):
         logger.error('Error in /comments/%s: %s', commentId, str(e))
         return jsonify({'error': str(e)}), 500
 
-@app.route('/updoot/comments/<int:commentId>', methods=['DELETE'])
+@app.route(f'{BASE_PATH}/comments/<int:commentId>', methods=['DELETE'])
 def delete_comment(commentId):
     logger.debug('Received /comments/%s DELETE request', commentId)
     try:
@@ -245,7 +273,7 @@ def delete_comment(commentId):
         logger.error('Error in /comments/%s: %s', commentId, str(e))
         return jsonify({'error': str(e)}), 500
 
-@app.route('/updoot/admin/comments', methods=['GET'])
+@app.route(f'{BASE_PATH}/admin/comments', methods=['GET'])
 def get_all_comments():
     logger.debug('Received /admin/comments request')
     try:
@@ -260,7 +288,7 @@ def get_all_comments():
         logger.error('Error in /admin/comments: %s', str(e))
         return jsonify({'error': str(e)}), 500
 
-@app.route('/updoot/admin/comments/<int:commentId>', methods=['DELETE'])
+@app.route(f'{BASE_PATH}/admin/comments/<int:commentId>', methods=['DELETE'])
 def delete_admin_comment(commentId):
     logger.debug('Received /admin/comments/%s DELETE request', commentId)
     try:
@@ -277,7 +305,7 @@ def delete_admin_comment(commentId):
         logger.error('Error in /admin/comments/%s: %s', commentId, str(e))
         return jsonify({'error': str(e)}), 500
 
-@app.route('/updoot/admin/comments/user/<userId>', methods=['DELETE'])
+@app.route(f'{BASE_PATH}/admin/comments/user/<userId>', methods=['DELETE'])
 def delete_comments_by_user(userId):
     logger.debug('Received /admin/comments/user/%s DELETE request', userId)
     try:
@@ -291,7 +319,7 @@ def delete_comments_by_user(userId):
         logger.error('Error in /admin/comments/user/%s: %s', userId, str(e))
         return jsonify({'error': str(e)}), 500
 
-@app.route('/updoot/admin/settings', methods=['GET'])
+@app.route(f'{BASE_PATH}/admin/settings', methods=['GET'])
 def get_settings():
     logger.debug('Received /admin/settings request')
     try:
@@ -307,7 +335,7 @@ def get_settings():
         logger.error('Error in /admin/settings: %s', str(e))
         return jsonify({'error': str(e)}), 500
 
-@app.route('/updoot/admin/settings', methods=['POST'])
+@app.route(f'{BASE_PATH}/admin/settings', methods=['POST'])
 def save_settings():
     logger.debug('Received /admin/settings POST request')
     try:
@@ -319,7 +347,7 @@ def save_settings():
         with get_db() as conn:
             c = conn.cursor()
             c.execute('DELETE FROM settings WHERE ROWID = 1')
-            c.execute('INSERT INTO settings (globalLimit, userId, perUserLimit) VALUES (?, NULL, NULL)', (globalLimit,))
+            c.execute('INSERT INTO settings (rowid, globalLimit, userId, perUserLimit) VALUES (1, ?, NULL, NULL)', (globalLimit,))
             if userId:
                 c.execute('DELETE FROM settings WHERE userId = ?', (userId,))
                 c.execute('INSERT INTO settings (globalLimit, userId, perUserLimit) VALUES (NULL, ?, ?)', (userId, perUserLimit))
@@ -330,8 +358,12 @@ def save_settings():
         logger.error('Error in /admin/settings: %s', str(e))
         return jsonify({'error': str(e)}), 500
 
-if __name__ == '__main__':
-    if not os.path.exists(DATABASE):
-        logger.info('Database not found, initializing')
-        init_db()
-    app.run(host='0.0.0.0', port=8099)
+@app.get('/health')
+def health():
+    return jsonify({'ok': True})
+
+if not os.path.exists(DATABASE):
+    logger.info('Database not found, initializing')
+    init_db()
+
+

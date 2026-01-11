@@ -13,10 +13,13 @@
         const jellyfinCredentials = JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}');
         const server = jellyfinCredentials.Servers && jellyfinCredentials.Servers[0];
         const apiKey = server ? server.AccessToken : '';
-        const serverUrl = server ? server.ManualAddress || server.LocalAddress : 'https://YOURDOMAINNAMEHERE';
+        const serverUrlFallback = %%UPDOOT_SERVER_URL_FALLBACK%%;
+        const serverUrl = server ? (server.ManualAddress || server.LocalAddress) : (serverUrlFallback || 'https://YOURDOMAINNAMEHERE');
         const userId = server ? server.UserId : '';
-        const backendUrl = `${window.location.origin}/updoot`;
-        const adminUserIds = ['USERID1', 'USERID2'];
+        const backendPath = %%BACKEND_PATH%%;
+        const backendUrlOverride = %%UPDOOT_BACKEND_URL%%;
+        const backendUrl = backendUrlOverride || `${window.location.origin}${backendPath}`;
+        const adminUserIds = %%UPDOOT_ADMIN_USER_IDS%%;
 
         console.log('Credentials:', { serverUrl, apiKey, userId, backendUrl, isAdmin: adminUserIds.includes(userId) });
 
