@@ -1,0 +1,21 @@
+{
+  "name": "jellyfin-user-reviews",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "prettier:fix": "prettier '**/*.js' --write"
+  },
+  "prettier": {
+    "printWidth": 100,
+    "semi": true,
+    "singleQuote": true,
+    "tabWidth": 2,
+    "trailingComma": "all"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4ch",
+    "prettier": "^3.7.4"
+  }
+}
