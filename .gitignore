@@ -1,0 +1,32 @@
+# --- Python / CPython ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Packaging / build
+build/
+dist/
+*.egg-info/
+
+# --- Runtime data ---
+*.db
+*.log
+data/
+
+# --- OS / editor ---
+.DS_Store
+
+# --- JavaScript ---
+**/node_modules
+
+# --- Local development ---
+.vscode/
