@@ -5,15 +5,13 @@ import sqlite3
 import requests
 from flask import Flask, jsonify, request
 
+from backend.settings import settings
+
 app = Flask(__name__)
-# CONFIGURATION SECTION
-DATABASE = "./recommendations.db"  # leave this alone or select a dir you have read write access too
-JELLYFIN_URL = "https://YOURDOMAINNAMEHERE"  # Replace with your domain name
-JELLYFIN_API_KEY = "JELLYFINAPIKEYHERE"  # Replace with actual Jellyfin API key from the admin pannel api keys generate and copy that key here.
-ADMIN_USER_IDS = [
-    "88a888888aa88a88a8aa888aa8a8a8a8",
-    "USERID2",
-]  # Replace with actual admin user IDs that you want to have admin control of the comments and updoots to get these go to the admin pannel and edit that user the userid is going to be in the url for that page of the user.
+DATABASE = settings.db_path
+JELLYFIN_URL = settings.jellyfin_url
+JELLYFIN_API_KEY = settings.jellyfin_api_key
+ADMIN_USER_IDS = settings.admin_user_ids
 
 logging.basicConfig(
     level=logging.DEBUG,
