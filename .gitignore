@@ -25,5 +25,8 @@ data/
 # --- OS / editor ---
 .DS_Store
 
+# --- JavaScript ---
+/node_modules
+
 # Local development
 .vscode/
