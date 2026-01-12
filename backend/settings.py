@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     # (By default, pydantic-settings tries to JSON-decode list fields.)
     admin_user_ids: Annotated[list[str], NoDecode] = []
     log_level: int = logging.INFO
+    cache_version: str = "1"
 
     @field_validator("app_root_path", mode="before")
     @classmethod

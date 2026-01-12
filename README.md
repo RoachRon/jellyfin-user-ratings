@@ -6,13 +6,14 @@ this is an injection mod for jellyfin that adds a thumbs up, comments section an
 
 this is created to give users an interaction and ideas of things to watch, want to warn someone about some movie being terrible and not worth their time, leave a comment
 
-if you want to tell a user the movie is awesome etc you can simply leave a comment 
+if you want to tell a user the movie is awesome etc you can simply leave a comment
 
 thumbs up to add it to the reccomendations page
 
 admin users (they dont have to be admins in jellyfin but have to have their jellyfin userid defined in the python backend) can see a settings cog and administrage the comments section to make sure they dont have anything stupid or bad on there.
 
 ## Screenshots:
+
 ![Screenshot 2025-07-04 195513](https://github.com/user-attachments/assets/46b6f059-ae7b-46d7-97c6-528524cfa312)
 ![Screenshot 2025-07-04 195820](https://github.com/user-attachments/assets/8a28091c-56a7-4b09-8902-f18feb3268ce)
 ![Screenshot 2025-07-04 195706](https://github.com/user-attachments/assets/f9fa9dd3-5d26-46c6-9e1a-0391237be6cb)
@@ -20,13 +21,12 @@ admin users (they dont have to be admins in jellyfin but have to have their jell
 ![Screenshot 2025-07-04 195551](https://github.com/user-attachments/assets/21dbbd4c-c49e-4131-b9ab-03c16137bb5a)
 ![Screenshot 2025-07-04 195529](https://github.com/user-attachments/assets/0815cec9-ad8b-444f-8e0e-1bf6b7e08c15)
 
-
-
 ## how it works:
 
 it injects a script that adds the functions to call to a flask backend that runs on the same server in the background. it has its own database and doesnt interfere with the main database, it has its own backend sending all the thumbs and comments etc via /updoot/ so gets a redirect from a reverse proxy.
 
 ## requirements:
+
 the ability to run python as a command in your setup (no i dont own every system to test on them but it has been tested on ubuntu headless and runs as expected)
 
 nginx (other reverse proxies may work but again im not using these so wont be 100% on those)
@@ -47,30 +47,46 @@ a manual method injection script from either manually putting one in or having o
     }
 };</script>
 ```
+
 if you already use one of my mods or have the plugin version of the media bar installed they already have this method
 
 ## installation:
 
-download the files in the repo `updoot.js` and `backendupdoot.py` 
+download the files in the repo `updoot.js` and `backendupdoot.py`
 
-edit `updoot.js` this needs the obvious values replacing YOURDOMAINHERE and USERID1 and USERID2 replacing in the lines 16 and 19 
+### Serve `updoot.js` from the backend (recommended)
 
-save `updoot.js` in your jellyfin webroot (check your logs if you are unsure for linux by default it is /usr/share/jellyfin/web/)
+This repo can serve the script directly from Flask and inject config from environment variables, so you **don’t need to hardcode** `YOURDOMAINNAMEHERE` / `USERID1` / `USERID2` in `updoot.js`.
 
-add this to your `index.html` in the webroot of your jellyfin install before the `</body>` tag
+Add this to your Jellyfin `index.html` before `</body>`:
+
+`<script defer src="/updoot/assets/updoot.js"></script>`
+
+Note: for cache-busting, the recommended approach is to use the injector
+snippet and `/updoot/assets/config.json`, which loads a versioned
+`/updoot.<hash>.js` URL.
+
+Then configure the backend via env vars (examples):
+
+- `ADMIN_USER_IDS`: comma-separated Jellyfin user IDs (admins for the mod UI)
+- `APP_ROOT_PATH`: where the API is mounted (default `/updoot`)
+- `UPDOOT_JS_PATH`: optional filesystem path to `frontend/src/updoot.js`
+
+### Legacy: serving `updoot.js` from Jellyfin webroot
+
+If you’re not proxying `/updoot/assets/updoot.js` to Flask, you can still edit `updoot.js` and serve it from Jellyfin’s webroot the old way.
 
 `<script defer src="updoot.js"></script>`
 
-
-edit the `backendupdoot.py` and replace the obvious parts (near the top in the config section lines 9-12) save it 
+edit the `backendupdoot.py` and replace the obvious parts (near the top in the config section lines 9-12) save it
 
 install the requirements for python pip `pip install flask requests`
 
-now you can run this as a background service by running this command 
+now you can run this as a background service by running this command
 
 `nohup python3 backendupdoot.py > backendupdoot.log 2>&1 &`
 
-in nginx you simply add the following to your jellyfin config 
+in nginx you simply add the following to your jellyfin config
 
 ```
     # Proxy to Flask backend for recommendation API
@@ -100,4 +116,4 @@ would i make this into a plugin? yes if someone can show me the docs required to
 
 can anyone turn this into a plugin? sure its open source and if you can then do so, just please link back to the original somewhere in the description and im fine with it.
 
-can we donate? sure thing thank you https://ko-fi.com/bobhasnosoul 
+can we donate? sure thing thank you https://ko-fi.com/bobhasnosoul

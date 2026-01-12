@@ -10,6 +10,7 @@ APP = Flask(__name__)
 
 # pylint: disable=wrong-import-position
 from backend.routes.admin import ADMIN_BP
+from backend.routes.assets import ASSETS_BP
 from backend.routes.comments import COMMENTS_BP
 from backend.routes.recommendations import RECOMMENDATIONS_BP
 
@@ -22,6 +23,7 @@ def register_blueprint(bp):
 
 
 register_blueprint(ADMIN_BP)
+register_blueprint(ASSETS_BP)
 register_blueprint(COMMENTS_BP)
 register_blueprint(RECOMMENDATIONS_BP)
 
