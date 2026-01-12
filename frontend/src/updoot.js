@@ -2,6 +2,19 @@
   try {
     console.log('Jellyfin Updoot: Initializing');
 
+    const updootConfig = typeof window !== 'undefined' ? window.UPDOOT_CONFIG : null;
+    if (!updootConfig) {
+      throw new Error(
+        'UPDOOT_CONFIG is missing. Load Updoot via injector.js so it can fetch config.json and set window.UPDOOT_CONFIG before loading updoot.js.',
+      );
+    }
+    if (!updootConfig.backendPath) {
+      throw new Error('UPDOOT_CONFIG.backendPath missing.');
+    }
+    if (!Array.isArray(updootConfig.adminUserIds)) {
+      throw new Error('UPDOOT_CONFIG.adminUserIds missing or not an array.');
+    }
+
     if (!document.querySelector('link[href*="material-icons"]')) {
       console.log('Loading Material Icons');
       const link = document.createElement('link');
@@ -10,15 +23,34 @@
       document.head.appendChild(link);
     }
 
-    const jellyfinCredentials = JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}');
+    const rawCreds = localStorage.getItem('jellyfin_credentials');
+    if (!rawCreds) {
+      throw new Error(
+        'jellyfin_credentials missing from localStorage. You need a credentials injection script.',
+      );
+    }
+    const jellyfinCredentials = JSON.parse(rawCreds);
     const server = jellyfinCredentials.Servers && jellyfinCredentials.Servers[0];
-    const apiKey = server ? server.AccessToken : '';
-    const serverUrl = server
-      ? server.ManualAddress || server.LocalAddress
-      : 'https://YOURDOMAINNAMEHERE';
-    const userId = server ? server.UserId : '';
-    const backendUrl = `${window.location.origin}/updoot`;
-    const adminUserIds = ['USERID1', 'USERID2'];
+    if (!server) {
+      throw new Error('No Jellyfin server found in jellyfin_credentials.Servers[0].');
+    }
+    const apiKey = server.AccessToken;
+    if (!apiKey) {
+      throw new Error('AccessToken missing from jellyfin_credentials.Servers[0].');
+    }
+    const serverUrl = server.ManualAddress || server.LocalAddress;
+    if (!serverUrl) {
+      throw new Error(
+        'Jellyfin server URL missing. Expected ManualAddress or LocalAddress in jellyfin_credentials.',
+      );
+    }
+    const userId = server.UserId;
+    if (!userId) {
+      throw new Error('UserId missing from jellyfin_credentials.Servers[0].');
+    }
+    const backendPath = updootConfig.backendPath;
+    const backendUrl = `${window.location.origin}${backendPath}`;
+    const adminUserIds = updootConfig.adminUserIds;
 
     console.log('Credentials:', {
       serverUrl,

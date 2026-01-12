@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any
 
 from pydantic import field_validator
@@ -20,9 +21,6 @@ class Settings(BaseSettings):
 
     # --- JS generation ---
     backend_path: str = "/updoot"
-    backend_url: str | None = None
-    server_url_fallback: str | None = None
-    updoot_src: str = "/updoot/assets/updoot.js"
     cache_version: str = "1"
 
     @field_validator("admin_user_ids", mode="before")
@@ -53,4 +51,4 @@ class Settings(BaseSettings):
         return str(v).strip().rstrip("/")
 
 
-settings = Settings()
+settings = Settings()  # type: ignore[call-arg]

@@ -1,8 +1,9 @@
 import logging
 import os
 import sqlite3
+from pathlib import Path
 
-import requests
+import requests  # type: ignore[import-untyped]
 from flask import Flask, jsonify, request
 
 from backend.settings import settings
@@ -12,6 +13,10 @@ DATABASE = settings.db_path
 JELLYFIN_URL = settings.jellyfin_url
 JELLYFIN_API_KEY = settings.jellyfin_api_key
 ADMIN_USER_IDS = settings.admin_user_ids
+UPDOOT_JS_PATH = Path(
+    str(Path(__file__).resolve().parents[1] / "frontend" / "src" / "updoot.js")
+)
+UPDOOT_SRC = "/updoot/assets/updoot.js"
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -20,6 +25,68 @@ logging.basicConfig(
     filemode="a",
 )
 logger = logging.getLogger(__name__)
+
+
+@app.route("/updoot/assets/config.json", methods=["GET"])
+def serve_updoot_config():
+    """
+    Serve runtime config for the Jellyfin injector/bootstrap script.
+
+    Intentionally NOT cacheable: config should update immediately when env
+    changes.
+    """
+    cfg = {
+        "updootSrc": UPDOOT_SRC,
+        "version": settings.cache_version,
+        "backendPath": settings.backend_path,
+        "adminUserIds": settings.admin_user_ids,
+    }
+
+    resp = jsonify(cfg)
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+@app.route(UPDOOT_SRC, methods=["GET"])
+def serve_updoot_js():
+    """
+    Serve the Jellyfin web mod script.
+    """
+    try:
+        body = UPDOOT_JS_PATH.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        logger.error("updoot.js not found at %s", UPDOOT_JS_PATH)
+        return (
+            jsonify(
+                {
+                    "error": "updoot.js not found",
+                    "path": str(UPDOOT_JS_PATH),
+                }
+            ),
+            500,
+        )
+
+    # Caching strategy:
+    # - If the client requests /updoot.js?v=<cacheVersion> matching our current
+    #   version, we can allow long-lived caching (the URL changes when you bump
+    #   the version).
+    # - If not versioned (or mismatched), keep the TTL short to avoid getting
+    #   "stuck" on an old script indefinitely.
+    requested_version = request.args.get("v")
+    if requested_version and requested_version == settings.cache_version:
+        cache_control = "public, max-age=31536000, immutable"
+    else:
+        cache_control = "public, max-age=300"
+
+    return (
+        body,
+        200,
+        {
+            "Content-Type": "application/javascript; charset=utf-8",
+            "Cache-Control": cache_control,
+            "ETag": settings.cache_version,
+        },
+    )
 
 
 def init_db():
