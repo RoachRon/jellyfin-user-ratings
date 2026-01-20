@@ -54,6 +54,61 @@ if you already use one of my mods or have the plugin version of the media bar in
 
 download the files in the repo `updoot.js` and `backendupdoot.py`
 
+### Docker (production-style)
+
+Set required env vars (at minimum `JELLYFIN_URL` and `JELLYFIN_API_KEY`), then
+start the container.
+
+#### Option A: Docker Compose (recommended for users)
+
+```
+docker compose up -d
+```
+
+The SQLite database is stored at `/data/recommendations.db` inside the
+container (backed by a named volume). To override the path, set `DB_PATH` in
+`docker-compose.yml`.
+
+#### Option B: `docker run` (manual)
+
+```
+docker run -d \
+  --name jellyfin-updoot \
+  -p 8099:8099 \
+  -e JELLYFIN_URL=http://127.0.0.1:8096 \
+  -e JELLYFIN_API_KEY=changeme \
+  -e ADMIN_USER_IDS= \
+  -e APP_ROOT_PATH=/updoot \
+  -e DB_PATH=/data/recommendations.db \
+  -e PORT=8099 \
+  -v updoot_data:/data \
+  ghcr.io/OWNER/jellyfin-user-ratings:latest
+```
+
+To change the port, set `PORT` and publish the same port on the host, e.g.
+`-e PORT=9000 -p 9000:9000`.
+
+#### Local development with Docker (optional)
+
+If you prefer running the backend inside Docker while developing, use:
+
+```
+docker compose -f docker-compose.dev.yml up --build
+```
+
+This uses a named volume for the SQLite DB and bind-mounts `backend/` and
+`frontend/src/` so code changes are picked up by Flask’s dev reloader.
+
+#### Published image
+
+Images are published to GitHub Container Registry (GHCR):
+
+```
+ghcr.io/OWNER/jellyfin-user-ratings:latest
+```
+
+Replace `OWNER` with the GitHub user/org that hosts the repo.
+
 ### Serve `updoot.js` from the backend (recommended)
 
 This repo can serve the script directly from Flask and inject config from environment variables, so you **don’t need to hardcode** `YOURDOMAINNAMEHERE` / `USERID1` / `USERID2` in `updoot.js`.
@@ -61,6 +116,9 @@ This repo can serve the script directly from Flask and inject config from enviro
 Add this to your Jellyfin `index.html` before `</body>`:
 
 `<script defer src="/updoot/assets/updoot.js"></script>`
+
+If you’re using the Jellyfin JavaScript Injector, you can copy the contents
+of `injector.js` at the repo root and paste it directly.
 
 Note: for cache-busting, the recommended approach is to use the injector
 snippet and `/updoot/assets/config.json`, which loads a versioned

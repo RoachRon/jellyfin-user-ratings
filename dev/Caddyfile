@@ -1,0 +1,4 @@
+:8096 {
+  reverse_proxy /updoot/* updoot:8099
+  reverse_proxy jellyfin:8096
+}

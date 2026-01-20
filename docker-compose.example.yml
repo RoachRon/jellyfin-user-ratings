@@ -1,0 +1,19 @@
+services:
+  updoot:
+    image: ghcr.io/OWNER/jellyfin-user-ratings:latest
+    ports:
+      - "${PORT:-8099}:${PORT:-8099}"
+    environment:
+      JELLYFIN_URL: ${JELLYFIN_URL}
+      JELLYFIN_API_KEY: ${JELLYFIN_API_KEY}
+      ADMIN_USER_IDS: ${ADMIN_USER_IDS:-}
+      APP_ROOT_PATH: ${APP_ROOT_PATH:-/updoot}
+      DB_PATH: ${DB_PATH:-/data/recommendations.db}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      PORT: ${PORT:-8099}
+    volumes:
+      - updoot_data:/data
+    restart: unless-stopped
+
+volumes:
+  updoot_data:
