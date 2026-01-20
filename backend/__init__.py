@@ -1,5 +1,3 @@
-import os
-
 from flask import Flask
 
 from backend.db import init_db
@@ -8,10 +6,9 @@ from backend.settings import settings
 
 APP = Flask(__name__)
 
-# Init database if it doesn't exist
-if not os.path.exists(settings.db_path):
-    logger.info("Database not found, initializing")
-    init_db()
+# Init database (create/migrate as needed)
+logger.info("Initializing database")
+init_db()
 
 # pylint: disable=wrong-import-position
 from backend.routes.admin import ADMIN_BP

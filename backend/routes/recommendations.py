@@ -1,8 +1,10 @@
 from flask import Blueprint, jsonify, request
+from sqlalchemy import func, select
 
-from backend.db import get_db
+from backend.db import db_session
 from backend.helpers import get_jellyfin_username
 from backend.logger import logger
+from backend.models import Recommendation, Setting, UserSetting
 
 RECOMMENDATIONS_BP = Blueprint(
     "recommendations", __name__, url_prefix="/recommendations"
@@ -20,81 +22,65 @@ def add_recommendation():
             logger.error("Missing userId or itemId in recommendations request")
             return jsonify({"error": "Missing userId or itemId"}), 400
 
-        with get_db() as conn:
-            c = conn.cursor()
-            c.execute("SELECT globalLimit FROM settings WHERE ROWID = 1")
-            globalLimit = c.fetchone()
-            globalLimit = globalLimit["globalLimit"] if globalLimit else 0
-            if globalLimit > 0:
-                c.execute("SELECT COUNT(*) as count FROM recommendations")
-                total = c.fetchone()["count"]
-                if total >= globalLimit:
-                    logger.warning(
-                        "Global recommendation limit reached: %s/%s",
-                        total,
-                        globalLimit,
-                    )
-                    return (
-                        jsonify(
-                            {"error": "Global recommendation limit reached"}
-                        ),
-                        403,
-                    )
-
-            c.execute(
-                "SELECT perUserLimit FROM settings WHERE userId = ?", (userId,)
+        globalLimit = (
+            db_session.scalars(select(Setting.globalLimit)).one_or_none() or 0
+        )
+        if globalLimit > 0:
+            total = db_session.scalar(
+                select(func.count()).select_from(Recommendation)
             )
-            userLimit = c.fetchone()
-            userLimit = userLimit["perUserLimit"] if userLimit else 0
-            if userLimit > 0:
-                c.execute(
-                    "SELECT COUNT(*) as count FROM recommendations WHERE userId = ?",
-                    (userId,),
+            if total >= globalLimit:
+                logger.warning(
+                    "Global recommendation limit reached: %s/%s",
+                    total,
+                    globalLimit,
                 )
-                userCount = c.fetchone()["count"]
-                if userCount >= userLimit:
-                    logger.warning(
-                        "User %s recommendation limit reached: %s/%s",
-                        userId,
-                        userCount,
-                        userLimit,
-                    )
-                    return (
-                        jsonify(
-                            {"error": "User recommendation limit reached"}
-                        ),
-                        403,
-                    )
+                return (
+                    jsonify({"error": "Global recommendation limit reached"}),
+                    403,
+                )
 
-            c.execute(
-                "SELECT * FROM recommendations WHERE userId = ? AND itemId = ?",
-                (userId, itemId),
+        userLimit = (
+            db_session.scalars(
+                select(UserSetting.limit).where(UserSetting.userId == userId)
+            ).one_or_none()
+            or 0
+        )
+        if userLimit > 0:
+            userCount = db_session.scalar(
+                select(func.count())
+                .select_from(Recommendation)
+                .where(Recommendation.userId == userId)
             )
-            existing = c.fetchone()
-            username = get_jellyfin_username(userId)
-            if existing:
-                c.execute(
-                    "DELETE FROM recommendations WHERE userId = ? AND itemId = ?",
-                    (userId, itemId),
-                )
-                conn.commit()
-                logger.info(
-                    "Unrecommended: userId=%s, itemId=%s", userId, itemId
-                )
-                return jsonify({"status": "unrecommended"})
-            else:
-                c.execute(
-                    "INSERT INTO recommendations (userId, itemId, username) VALUES (?, ?, ?)",
-                    (userId, itemId, username),
-                )
-                conn.commit()
-                logger.info(
-                    "Recommended: userId=%s, itemId=%s, username=%s",
+            if userCount >= userLimit:
+                logger.warning(
+                    "User %s recommendation limit reached: %s/%s",
                     userId,
-                    itemId,
-                    username,
+                    userCount,
+                    userLimit,
                 )
-                return jsonify({"status": "recommended"})
+                return (
+                    jsonify({"error": "User recommendation limit reached"}),
+                    403,
+                )
+
+        existing = db_session.get(Recommendation, (userId, itemId))
+        username = get_jellyfin_username(userId)
+        if existing:
+            db_session.delete(existing)
+            logger.info("Unrecommended: userId=%s, itemId=%s", userId, itemId)
+            return jsonify({"status": "unrecommended"})
+        else:
+            db_session.add(
+                Recommendation(userId=userId, itemId=itemId, username=username)
+            )
+            logger.info(
+                "Recommended: userId=%s, itemId=%s, username=%s",
+                userId,
+                itemId,
+                username,
+            )
+            return jsonify({"status": "recommended"})
     except Exception as e:
         logger.error("Error in /recommendations: %s", str(e))
         return jsonify({"error": str(e)}), 500
@@ -104,19 +90,17 @@ def add_recommendation():
 def get_recommendations():
     logger.debug("Received /recommendations request")
     try:
-        with get_db() as conn:
-            c = conn.cursor()
-            c.execute("SELECT userId, itemId, username FROM recommendations")
-            recommendations = [
-                {
-                    "userId": row["userId"],
-                    "itemId": row["itemId"],
-                    "username": row["username"],
-                }
-                for row in c.fetchall()
-            ]
-            logger.info("Retrieved %s recommendations", len(recommendations))
-            return jsonify(recommendations)
+        rows = db_session.scalars(select(Recommendation)).all()
+        recommendations = [
+            {
+                "userId": row.userId,
+                "itemId": row.itemId,
+                "username": row.username,
+            }
+            for row in rows
+        ]
+        logger.info("Retrieved %s recommendations", len(recommendations))
+        return jsonify(recommendations)
     except Exception as e:
         logger.error("Error in /recommendations: %s", str(e))
         return jsonify({"error": str(e)}), 500
@@ -126,26 +110,23 @@ def get_recommendations():
 def get_recommendations_for_item(itemId):
     logger.debug("Received /recommendations/%s request", itemId)
     try:
-        with get_db() as conn:
-            c = conn.cursor()
-            c.execute(
-                "SELECT userId, itemId, username FROM recommendations WHERE itemId = ?",
-                (itemId,),
-            )
-            recommendations = [
-                {
-                    "userId": row["userId"],
-                    "itemId": row["itemId"],
-                    "username": row["username"],
-                }
-                for row in c.fetchall()
-            ]
-            logger.info(
-                "Retrieved %s recommendations for itemId=%s",
-                len(recommendations),
-                itemId,
-            )
-            return jsonify(recommendations)
+        rows = db_session.scalars(
+            select(Recommendation).where(Recommendation.itemId == itemId)
+        ).all()
+        recommendations = [
+            {
+                "userId": row.userId,
+                "itemId": row.itemId,
+                "username": row.username,
+            }
+            for row in rows
+        ]
+        logger.info(
+            "Retrieved %s recommendations for itemId=%s",
+            len(recommendations),
+            itemId,
+        )
+        return jsonify(recommendations)
     except Exception as e:
         logger.error("Error in /recommendations/%s: %s", itemId, str(e))
         return jsonify({"error": str(e)}), 500

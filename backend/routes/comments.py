@@ -1,8 +1,10 @@
 from flask import Blueprint, jsonify, request
+from sqlalchemy import select
 
-from backend.db import get_db
+from backend.db import db_session
 from backend.helpers import get_jellyfin_username
 from backend.logger import logger
+from backend.models import Comment
 from backend.settings import settings
 
 COMMENTS_BP = Blueprint("comments", __name__, url_prefix="/comments")
@@ -26,20 +28,21 @@ def add_comment():
             )
 
         username = get_jellyfin_username(userId)
-        with get_db() as conn:
-            c = conn.cursor()
-            c.execute(
-                "INSERT INTO comments (userId, itemId, username, comment) VALUES (?, ?, ?, ?)",
-                (userId, itemId, username, comment),
+        db_session.add(
+            Comment(
+                userId=userId,
+                itemId=itemId,
+                username=username,
+                comment=comment,
             )
-            conn.commit()
-            logger.info(
-                "Comment added: userId=%s, itemId=%s, username=%s",
-                userId,
-                itemId,
-                username,
-            )
-            return jsonify({"status": "comment added"})
+        )
+        logger.info(
+            "Comment added: userId=%s, itemId=%s, username=%s",
+            userId,
+            itemId,
+            username,
+        )
+        return jsonify({"status": "comment added"})
     except Exception as e:
         logger.error("Error in /comments: %s", str(e))
         return jsonify({"error": str(e)}), 500
@@ -49,26 +52,23 @@ def add_comment():
 def get_comments_for_item(itemId):
     logger.debug("Received /comments/%s request", itemId)
     try:
-        with get_db() as conn:
-            c = conn.cursor()
-            c.execute(
-                "SELECT id, userId, itemId, username, comment FROM comments WHERE itemId = ?",
-                (itemId,),
-            )
-            comments = [
-                {
-                    "id": row["id"],
-                    "userId": row["userId"],
-                    "itemId": row["itemId"],
-                    "username": row["username"],
-                    "comment": row["comment"],
-                }
-                for row in c.fetchall()
-            ]
-            logger.info(
-                "Retrieved %s comments for itemId=%s", len(comments), itemId
-            )
-            return jsonify(comments)
+        comment_rows = db_session.scalars(
+            select(Comment).where(Comment.itemId == itemId)
+        )
+        comments = [
+            {
+                "id": row.id,
+                "userId": row.userId,
+                "itemId": row.itemId,
+                "username": row.username,
+                "comment": row.comment,
+            }
+            for row in comment_rows
+        ]
+        logger.info(
+            "Retrieved %s comments for itemId=%s", len(comments), itemId
+        )
+        return jsonify(comments)
     except Exception as e:
         logger.error("Error in /comments/%s: %s", itemId, str(e))
         return jsonify({"error": str(e)}), 500
@@ -85,33 +85,26 @@ def edit_comment(commentId):
             logger.error("Missing userId or comment in edit_comment request")
             return jsonify({"error": "Missing userId or comment"}), 400
 
-        with get_db() as conn:
-            c = conn.cursor()
-            c.execute("SELECT userId FROM comments WHERE id = ?", (commentId,))
-            result = c.fetchone()
-            if not result:
-                logger.warning("Comment not found: id=%s", commentId)
-                return jsonify({"error": "Comment not found"}), 404
-            if (
-                result["userId"] != userId
-                and userId not in settings.admin_user_ids
-            ):
-                logger.warning(
-                    "Unauthorized edit attempt: userId=%s, commentId=%s",
-                    userId,
-                    commentId,
-                )
-                return jsonify({"error": "Unauthorized"}), 403
+        comment_row = db_session.get(Comment, commentId)
+        if not comment_row:
+            logger.warning("Comment not found: id=%s", commentId)
+            return jsonify({"error": "Comment not found"}), 404
+        if (
+            comment_row.userId != userId
+            and userId not in settings.admin_user_ids
+        ):
+            logger.warning(
+                "Unauthorized edit attempt: userId=%s, commentId=%s",
+                userId,
+                commentId,
+            )
+            return jsonify({"error": "Unauthorized"}), 403
 
-            c.execute(
-                "UPDATE comments SET comment = ? WHERE id = ?",
-                (comment, commentId),
-            )
-            conn.commit()
-            logger.info(
-                "Comment edited: userId=%s, commentId=%s", userId, commentId
-            )
-            return jsonify({"status": "comment edited"})
+        comment_row.comment = comment
+        logger.info(
+            "Comment edited: userId=%s, commentId=%s", userId, commentId
+        )
+        return jsonify({"status": "comment edited"})
     except Exception as e:
         logger.error("Error in /comments/%s: %s", commentId, str(e))
         return jsonify({"error": str(e)}), 500
@@ -127,30 +120,26 @@ def delete_comment(commentId):
             logger.error("Missing userId in delete_comment request")
             return jsonify({"error": "Missing userId"}), 400
 
-        with get_db() as conn:
-            c = conn.cursor()
-            c.execute("SELECT userId FROM comments WHERE id = ?", (commentId,))
-            result = c.fetchone()
-            if not result:
-                logger.warning("Comment not found: id=%s", commentId)
-                return jsonify({"error": "Comment not found"}), 404
-            if (
-                result["userId"] != userId
-                and userId not in settings.admin_user_ids
-            ):
-                logger.warning(
-                    "Unauthorized delete attempt: userId=%s, commentId=%s",
-                    userId,
-                    commentId,
-                )
-                return jsonify({"error": "Unauthorized"}), 403
-
-            c.execute("DELETE FROM comments WHERE id = ?", (commentId,))
-            conn.commit()
-            logger.info(
-                "Comment deleted: userId=%s, commentId=%s", userId, commentId
+        comment_row = db_session.get(Comment, commentId)
+        if not comment_row:
+            logger.warning("Comment not found: id=%s", commentId)
+            return jsonify({"error": "Comment not found"}), 404
+        if (
+            comment_row.userId != userId
+            and userId not in settings.admin_user_ids
+        ):
+            logger.warning(
+                "Unauthorized delete attempt: userId=%s, commentId=%s",
+                userId,
+                commentId,
             )
-            return jsonify({"status": "comment deleted"})
+            return jsonify({"error": "Unauthorized"}), 403
+
+        session.delete(comment_row)
+        logger.info(
+            "Comment deleted: userId=%s, commentId=%s", userId, commentId
+        )
+        return jsonify({"status": "comment deleted"})
     except Exception as e:
         logger.error("Error in /comments/%s: %s", commentId, str(e))
         return jsonify({"error": str(e)}), 500
