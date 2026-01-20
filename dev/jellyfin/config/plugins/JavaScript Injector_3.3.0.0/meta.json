@@ -1,0 +1,16 @@
+{
+  "category": "General",
+  "changelog": "- Update README.md\n - Add quick enable/disable and remove buttons for scripts",
+  "description": "Inject custom javascript(s) to the Jellyfin Web UI",
+  "guid": "f5a34f7b-2e8a-4e6a-a722-3a216a81b374",
+  "name": "JavaScript Injector",
+  "overview": "Inject custom javascript(s) to the Jellyfin Web UI",
+  "owner": "n00bcodr",
+  "targetAbi": "10.11.0.0",
+  "timestamp": "2026-01-18T18:25:22.0000000Z",
+  "version": "3.3.0.0",
+  "status": "Active",
+  "autoUpdate": true,
+  "imagePath": "/config/plugins/JavaScript Injector_3.3.0.0/icon.png",
+  "assemblies": []
+}
