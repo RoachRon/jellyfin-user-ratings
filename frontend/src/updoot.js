@@ -410,7 +410,7 @@
       }
 
       try {
-        const url = `${backendUrl}/recommend`;
+        const url = `${backendUrl}/recommendations`;
         console.log('Sending recommendation toggle:', url, { userId, itemId });
         const response = await fetch(url, {
           method: 'POST',
