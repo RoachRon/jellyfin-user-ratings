@@ -1,0 +1,44 @@
+# For development only
+
+services:
+  updoot:
+    container_name: updoot
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      JELLYFIN_URL: http://jellyfin:8096
+      JELLYFIN_API_KEY: ${JELLYFIN_API_KEY}
+      ADMIN_USER_IDS: ${ADMIN_USER_IDS:-}
+      LOG_LEVEL: DEBUG
+    volumes:
+      - updoot_dev_data:/data
+      # Bind-mount the backend and frontend source code for hot reloading
+      - ./backend:/app/backend
+      - ./frontend/src:/app/frontend/src
+    command:
+      [
+        "sh",
+        "-c",
+        "python -m flask --app backend run --host 0.0.0.0 --port ${PORT:-8099} --debug",
+      ]
+
+  jellyfin:
+    container_name: jellyfin
+    image: jellyfin/jellyfin:latest
+    volumes:
+      - ./dev/jellyfin/config:/config
+      - jellyfin_cache:/cache
+      - ./dev/jellyfin/media:/media:ro
+
+  proxy:
+    container_name: proxy
+    image: caddy:2
+    ports:
+      - "8096:8096"
+    volumes:
+      - ./dev/Caddyfile.local:/etc/caddy/Caddyfile:ro
+
+volumes:
+  updoot_dev_data:
+  jellyfin_cache:
