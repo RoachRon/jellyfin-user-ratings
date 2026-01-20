@@ -1,0 +1,28 @@
+# For development only
+
+services:
+  updoot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-8099}:${PORT:-8099}"
+    environment:
+      JELLYFIN_URL: ${JELLYFIN_URL}
+      JELLYFIN_API_KEY: ${JELLYFIN_API_KEY}
+      ADMIN_USER_IDS: ${ADMIN_USER_IDS:-}
+      LOG_LEVEL: DEBUG
+    volumes:
+      - updoot_dev_data:/data
+      # Bind-mount the backend and frontend source code for hot reloading
+      - ./backend:/app/backend
+      - ./frontend/src:/app/frontend/src
+    command:
+      [
+        "sh",
+        "-c",
+        "python -m flask --app backend run --host 0.0.0.0 --port ${PORT:-8099} --debug",
+      ]
+
+volumes:
+  updoot_dev_data:

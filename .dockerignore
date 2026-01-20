@@ -1,0 +1,16 @@
+.git/
+.DS_Store
+__pycache__/
+*.py[cod]
+*.log
+*.db
+.venv/
+venv/
+ENV/
+env/
+node_modules/
+local/
+data/
+build/
+dist/
+*.egg-info/
