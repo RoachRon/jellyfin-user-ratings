@@ -10,15 +10,15 @@ from backend.settings import settings
 app = Flask(__name__)
 
 
-@app.route("/updoot/recommend", methods=["POST"])
-def recommend():
-    logger.debug("Received /recommend request")
+@app.route("/updoot/recommendations", methods=["POST"])
+def add_recommendation():
+    logger.debug("Received /recommendations request")
     try:
         data = request.get_json()
         userId = data.get("userId")
         itemId = data.get("itemId")
         if not userId or not itemId:
-            logger.error("Missing userId or itemId in recommend request")
+            logger.error("Missing userId or itemId in recommendations request")
             return jsonify({"error": "Missing userId or itemId"}), 400
 
         with get_db() as conn:
@@ -97,7 +97,7 @@ def recommend():
                 )
                 return jsonify({"status": "recommended"})
     except Exception as e:
-        logger.error("Error in /recommend: %s", str(e))
+        logger.error("Error in /recommendations: %s", str(e))
         return jsonify({"error": str(e)}), 500
 
 
