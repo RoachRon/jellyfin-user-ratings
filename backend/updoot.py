@@ -1,21 +1,13 @@
-import logging
 import os
 import sqlite3
 
 import requests
 from flask import Flask, jsonify, request
 
+from backend.logger import logger
 from backend.settings import settings
 
 app = Flask(__name__)
-
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s %(levelname)s: %(message)s",
-    filename="./flask-app.log",
-    filemode="a",
-)
-logger = logging.getLogger(__name__)
 
 
 def init_db():
