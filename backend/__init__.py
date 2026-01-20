@@ -6,7 +6,7 @@ from backend.db import init_db
 from backend.logger import logger
 from backend.settings import settings
 
-APP = Flask(__name__, root_path="/updoot")
+APP = Flask(__name__, root_path=settings.app_root_path)
 
 # pylint: disable=wrong-import-position
 from backend.routes.admin import ADMIN_BP

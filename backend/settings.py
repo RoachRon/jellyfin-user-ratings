@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     db_path: str = f"{PROJECT_ROOT}/data/recommendations.db"
+    app_root_path: str = "/updoot"
     jellyfin_url: str
     jellyfin_api_key: str
     # Accept comma-separated values from env without requiring JSON syntax.
