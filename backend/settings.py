@@ -16,12 +16,21 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     db_path: str = f"{PROJECT_ROOT}/data/recommendations.db"
+    app_root_path: str = "/updoot"
     jellyfin_url: str
     jellyfin_api_key: str
     # Accept comma-separated values from env without requiring JSON syntax.
     # (By default, pydantic-settings tries to JSON-decode list fields.)
     admin_user_ids: Annotated[list[str], NoDecode] = []
     log_level: int = logging.INFO
+
+    @field_validator("app_root_path", mode="before")
+    @classmethod
+    def _normalize_app_root_path(cls, v: Any) -> str | None:
+        v = (v or "").strip().strip("/")
+        if not v:
+            raise ValueError("app_root_path cannot be empty")
+        return f"/{v}"
 
     @field_validator("admin_user_ids", mode="before")
     @classmethod

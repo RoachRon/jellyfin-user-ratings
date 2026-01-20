@@ -17,7 +17,7 @@ from backend.routes.recommendations import RECOMMENDATIONS_BP
 
 
 def register_blueprint(bp):
-    combined_prefix = "/updoot" + (bp.url_prefix or "")
+    combined_prefix = settings.app_root_path + (bp.url_prefix or "")
     APP.register_blueprint(bp, url_prefix=combined_prefix)
 
 
