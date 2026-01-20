@@ -8,6 +8,11 @@ from backend.settings import settings
 
 APP = Flask(__name__)
 
+# Init database if it doesn't exist
+if not os.path.exists(settings.db_path):
+    logger.info("Database not found, initializing")
+    init_db()
+
 # pylint: disable=wrong-import-position
 from backend.routes.admin import ADMIN_BP
 from backend.routes.assets import ASSETS_BP
@@ -26,10 +31,3 @@ register_blueprint(ADMIN_BP)
 register_blueprint(ASSETS_BP)
 register_blueprint(COMMENTS_BP)
 register_blueprint(RECOMMENDATIONS_BP)
-
-
-if __name__ == "__main__":
-    if not os.path.exists(settings.db_path):
-        logger.info("Database not found, initializing")
-        init_db()
-    APP.run(host="0.0.0.0", port=8099)
