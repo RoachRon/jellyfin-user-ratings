@@ -26,6 +26,10 @@ dist/
 *.log
 data/
 
+# --- Jellyfin data ---
+**/jellyfin/config/log/
+**/jellyfin/config/metadata/
+
 # --- OS / editor ---
 .DS_Store
 
