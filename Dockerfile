@@ -22,7 +22,9 @@ RUN poetry install \
 
 COPY backend/ /app/backend/
 COPY frontend/src/ /app/frontend/src/
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
 
 EXPOSE ${PORT}
 
-CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT} backend:APP"]
+CMD ["sh", "-c", "/app/start.sh"]

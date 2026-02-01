@@ -1,14 +1,8 @@
 from flask import Flask
 
-from backend.db import init_db
-from backend.logger import logger
 from backend.settings import settings
 
 APP = Flask(__name__)
-
-# Init database (create/migrate as needed)
-logger.info("Initializing database")
-init_db()
 
 # pylint: disable=wrong-import-position
 import backend.util.request_hooks
