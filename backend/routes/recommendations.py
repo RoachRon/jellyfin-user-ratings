@@ -14,25 +14,27 @@ def add_recommendation():
     logger.debug("Received /recommendations request")
     try:
         data = request.get_json()
-        userId = data.get("userId")
-        itemId = data.get("itemId")
-        if not userId or not itemId:
-            logger.error("Missing userId or itemId in recommendations request")
+        user_id = data.get("userId")
+        item_id = data.get("itemId")
+        if not user_id or not item_id:
+            logger.error(
+                "Missing user_id or item_id in recommendations request"
+            )
             return jsonify({"error": "Missing userId or itemId"}), 400
 
         with get_db() as conn:
             c = conn.cursor()
             c.execute("SELECT globalLimit FROM settings WHERE ROWID = 1")
-            globalLimit = c.fetchone()
-            globalLimit = globalLimit["globalLimit"] if globalLimit else 0
-            if globalLimit > 0:
+            global_limit = c.fetchone()
+            global_limit = global_limit["globalLimit"] if global_limit else 0
+            if global_limit > 0:
                 c.execute("SELECT COUNT(*) as count FROM recommendations")
                 total = c.fetchone()["count"]
-                if total >= globalLimit:
+                if total >= global_limit:
                     logger.warning(
                         "Global recommendation limit reached: %s/%s",
                         total,
-                        globalLimit,
+                        global_limit,
                     )
                     return (
                         jsonify(
@@ -42,22 +44,23 @@ def add_recommendation():
                     )
 
             c.execute(
-                "SELECT perUserLimit FROM settings WHERE userId = ?", (userId,)
+                "SELECT perUserLimit FROM settings WHERE userId = ?",
+                (user_id,),
             )
-            userLimit = c.fetchone()
-            userLimit = userLimit["perUserLimit"] if userLimit else 0
-            if userLimit > 0:
+            user_limit = c.fetchone()
+            user_limit = user_limit["perUserLimit"] if user_limit else 0
+            if user_limit > 0:
                 c.execute(
                     "SELECT COUNT(*) as count FROM recommendations WHERE userId = ?",
-                    (userId,),
+                    (user_id,),
                 )
-                userCount = c.fetchone()["count"]
-                if userCount >= userLimit:
+                user_count = c.fetchone()["count"]
+                if user_count >= user_limit:
                     logger.warning(
                         "User %s recommendation limit reached: %s/%s",
-                        userId,
-                        userCount,
-                        userLimit,
+                        user_id,
+                        user_count,
+                        user_limit,
                     )
                     return (
                         jsonify(
@@ -68,30 +71,30 @@ def add_recommendation():
 
             c.execute(
                 "SELECT * FROM recommendations WHERE userId = ? AND itemId = ?",
-                (userId, itemId),
+                (user_id, item_id),
             )
             existing = c.fetchone()
-            username = get_jellyfin_username(userId)
+            username = get_jellyfin_username(user_id)
             if existing:
                 c.execute(
                     "DELETE FROM recommendations WHERE userId = ? AND itemId = ?",
-                    (userId, itemId),
+                    (user_id, item_id),
                 )
                 conn.commit()
                 logger.info(
-                    "Unrecommended: userId=%s, itemId=%s", userId, itemId
+                    "Unrecommended: user_id=%s, item_id=%s", user_id, item_id
                 )
                 return jsonify({"status": "unrecommended"})
             else:
                 c.execute(
                     "INSERT INTO recommendations (userId, itemId, username) VALUES (?, ?, ?)",
-                    (userId, itemId, username),
+                    (user_id, item_id, username),
                 )
                 conn.commit()
                 logger.info(
-                    "Recommended: userId=%s, itemId=%s, username=%s",
-                    userId,
-                    itemId,
+                    "Recommended: user_id=%s, item_id=%s, username=%s",
+                    user_id,
+                    item_id,
                     username,
                 )
                 return jsonify({"status": "recommended"})
@@ -122,15 +125,15 @@ def get_recommendations():
         return jsonify({"error": str(e)}), 500
 
 
-@RECOMMENDATIONS_BP.route("/<itemId>", methods=["GET"])
-def get_recommendations_for_item(itemId):
-    logger.debug("Received /recommendations/%s request", itemId)
+@RECOMMENDATIONS_BP.route("/<item_id>", methods=["GET"])
+def get_recommendations_for_item(item_id):
+    logger.debug("Received /recommendations/%s request", item_id)
     try:
         with get_db() as conn:
             c = conn.cursor()
             c.execute(
                 "SELECT userId, itemId, username FROM recommendations WHERE itemId = ?",
-                (itemId,),
+                (item_id,),
             )
             recommendations = [
                 {
@@ -141,11 +144,11 @@ def get_recommendations_for_item(itemId):
                 for row in c.fetchall()
             ]
             logger.info(
-                "Retrieved %s recommendations for itemId=%s",
+                "Retrieved %s recommendations for item_id=%s",
                 len(recommendations),
-                itemId,
+                item_id,
             )
             return jsonify(recommendations)
     except Exception as e:
-        logger.error("Error in /recommendations/%s: %s", itemId, str(e))
+        logger.error("Error in /recommendations/%s: %s", item_id, str(e))
         return jsonify({"error": str(e)}), 500

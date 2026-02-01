@@ -32,40 +32,40 @@ def get_all_comments():
         return jsonify({"error": str(e)}), 500
 
 
-@ADMIN_BP.route("/comments/<int:commentId>", methods=["DELETE"])
-def delete_admin_comment(commentId):
-    logger.debug("Received /admin/comments/%s DELETE request", commentId)
+@ADMIN_BP.route("/comments/<int:comment_id>", methods=["DELETE"])
+def delete_admin_comment(comment_id):
+    logger.debug("Received /admin/comments/%s DELETE request", comment_id)
     try:
         with get_db() as conn:
             c = conn.cursor()
-            c.execute("DELETE FROM comments WHERE id = ?", (commentId,))
+            c.execute("DELETE FROM comments WHERE id = ?", (comment_id,))
             if c.rowcount == 0:
-                logger.warning("Comment not found: id=%s", commentId)
+                logger.warning("Comment not found: id=%s", comment_id)
                 return jsonify({"error": "Comment not found"}), 404
             conn.commit()
-            logger.info("Comment deleted by admin: id=%s", commentId)
+            logger.info("Comment deleted by admin: id=%s", comment_id)
             return jsonify({"status": "comment deleted"})
     except Exception as e:
-        logger.error("Error in /admin/comments/%s: %s", commentId, str(e))
+        logger.error("Error in /admin/comments/%s: %s", comment_id, str(e))
         return jsonify({"error": str(e)}), 500
 
 
-@ADMIN_BP.route("/comments/user/<userId>", methods=["DELETE"])
-def delete_comments_by_user(userId):
-    logger.debug("Received /admin/comments/user/%s DELETE request", userId)
+@ADMIN_BP.route("/comments/user/<user_id>", methods=["DELETE"])
+def delete_comments_by_user(user_id):
+    logger.debug("Received /admin/comments/user/%s DELETE request", user_id)
     try:
         with get_db() as conn:
             c = conn.cursor()
-            c.execute("DELETE FROM comments WHERE userId = ?", (userId,))
+            c.execute("DELETE FROM comments WHERE userId = ?", (user_id,))
             logger.info(
-                "Comments deleted for userId=%s, rows affected=%s",
-                userId,
+                "Comments deleted for user_id=%s, rows affected=%s",
+                user_id,
                 c.rowcount,
             )
             conn.commit()
             return jsonify({"status": "comments deleted for user"})
     except Exception as e:
-        logger.error("Error in /admin/comments/user/%s: %s", userId, str(e))
+        logger.error("Error in /admin/comments/user/%s: %s", user_id, str(e))
         return jsonify({"error": str(e)}), 500
 
 
@@ -76,24 +76,24 @@ def get_settings():
         with get_db() as conn:
             c = conn.cursor()
             c.execute("SELECT globalLimit FROM settings WHERE ROWID = 1")
-            globalLimit = c.fetchone()
+            global_limit = c.fetchone()
             c.execute(
                 "SELECT userId, perUserLimit FROM settings WHERE userId IS NOT NULL"
             )
-            userLimits = {
+            user_limits = {
                 row["userId"]: row["perUserLimit"] for row in c.fetchall()
             }
             logger.info(
-                "Settings retrieved: globalLimit=%s, userLimits=%s",
-                globalLimit["globalLimit"] if globalLimit else 0,
-                userLimits,
+                "Settings retrieved: global_limit=%s, user_limits=%s",
+                global_limit["globalLimit"] if global_limit else 0,
+                user_limits,
             )
             return jsonify(
                 {
                     "globalLimit": (
-                        globalLimit["globalLimit"] if globalLimit else 0
+                        global_limit["globalLimit"] if global_limit else 0
                     ),
-                    "userLimits": userLimits,
+                    "userLimits": user_limits,
                 }
             )
     except Exception as e:
@@ -106,29 +106,29 @@ def save_settings():
     logger.debug("Received /admin/settings POST request")
     try:
         data = request.get_json()
-        globalLimit = data.get("globalLimit", 0)
-        userId = data.get("userId")
-        perUserLimit = data.get("perUserLimit", 0)
+        global_limit = data.get("globalLimit", 0)
+        user_id = data.get("userId")
+        per_user_limit = data.get("perUserLimit", 0)
 
         with get_db() as conn:
             c = conn.cursor()
             c.execute("DELETE FROM settings WHERE ROWID = 1")
             c.execute(
                 "INSERT INTO settings (globalLimit, userId, perUserLimit) VALUES (?, NULL, NULL)",
-                (globalLimit,),
+                (global_limit,),
             )
-            if userId:
-                c.execute("DELETE FROM settings WHERE userId = ?", (userId,))
+            if user_id:
+                c.execute("DELETE FROM settings WHERE userId = ?", (user_id,))
                 c.execute(
                     "INSERT INTO settings (globalLimit, userId, perUserLimit) VALUES (NULL, ?, ?)",
-                    (userId, perUserLimit),
+                    (user_id, per_user_limit),
                 )
             conn.commit()
             logger.info(
-                "Settings saved: globalLimit=%s, userId=%s, perUserLimit=%s",
-                globalLimit,
-                userId,
-                perUserLimit,
+                "Settings saved: global_limit=%s, user_id=%s, per_user_limit=%s",
+                global_limit,
+                user_id,
+                per_user_limit,
             )
             return jsonify({"status": "settings saved"})
     except Exception as e:
