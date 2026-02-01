@@ -93,11 +93,45 @@ To change the port, set `PORT` and publish the same port on the host, e.g.
 If you prefer running the backend inside Docker while developing, use:
 
 ```
-docker compose -f docker-compose.dev.yml up --build
+docker compose up --build
 ```
 
 This uses a named volume for the SQLite DB and bind-mounts `backend/` and
 `frontend/src/` so code changes are picked up by Flask’s dev reloader.
+
+#### Local development with Flask on the host (recommended for pdb)
+
+This keeps Jellyfin + Caddy in Docker but runs Flask directly in a terminal so
+you can see logs and use `pdb` breakpoints.
+
+1. Start Jellyfin + Caddy:
+
+```
+docker compose -f docker-compose.local.yml up -d
+```
+
+2. Create a `.env` file (or export env vars) for Flask:
+
+```
+JELLYFIN_URL=http://localhost:8096
+JELLYFIN_API_KEY=changeme
+ADMIN_USER_IDS=
+LOG_LEVEL=DEBUG
+APP_ROOT_PATH=/updoot
+```
+
+3. Install dependencies and run Flask in debug mode:
+
+```
+poetry install
+python -c "from backend.db import init_db; init_db()"
+poetry run python -m flask --app backend run --host 0.0.0.0 --port 8099 --debug
+```
+
+Notes:
+- `dev/Caddyfile.local` proxies `/updoot/*` to your host at `8099`.
+- On Linux, replace `host.docker.internal` in `dev/Caddyfile.local` with the
+  Docker host gateway IP or add an `extra_hosts` entry.
 
 #### Published image
 
